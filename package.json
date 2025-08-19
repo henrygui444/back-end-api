@@ -1,0 +1,14 @@
+{
+  "name": "um API normal",
+  "version": "1.0.0",
+  "description": "Um bom API basico .",
+  "main": "server.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "Henry Guilherme Teixeira Costa",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
