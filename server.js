@@ -12,7 +12,18 @@ const app = express(); // Inicializa o servidor Express
 const port = 3000; // Define a porta onde o servidor irá escutar
 dotenv.config(); // Carrega as variáveis de ambiente do arquivo .env
 const { Pool } = pkg; // Obtém o construtor Pool do pacote pg para gerenciar conexões com o banco de dados PostgreSQL
+let pool = null; // Variável para armazenar o pool de conexões com o banco de dados
 
+//server.js
+// Função para obter uma conexão com o banco de dados
+function conectarBD() {
+  if (!pool) {
+    pool = new Pool({
+      connectionString: process.env.URL_BD,
+    });
+  }
+  return pool;
+}
 // ######
 // Local onde as rotas (endpoints) serão definidas
 // ######
@@ -53,13 +64,9 @@ app.get("/questoes", async (req, res) => {
   console.log("Rota GET /questoes solicitada"); // Log no terminal para indicar que a rota foi acessada
 
 
-  const { Pool } = pkg; // Obtém o construtor Pool do pacote pg para gerenciar conexões com o banco de dados PostgreSQL
+  const db = conectarBD(); // Cria uma nova instância do Pool para gerenciar conexões com o banco de dados 
 
-  const db = new Pool({
-    // Cria uma nova instância do Pool para gerenciar conexões com o banco de dados
-    connectionString: process.env.URL_BD, // Usa a variável de ambiente do arquivo .env DATABASE_URL para a string de conexão
-  });
-
+ 
   try {
     const resultado = await db.query("SELECT * FROM questoes"); // Executa uma consulta SQL para selecionar todas as questões
     const dados = resultado.rows; // Obtém as linhas retornadas pela consulta
