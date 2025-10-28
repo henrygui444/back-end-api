@@ -183,76 +183,122 @@ app.put("/questoes/:id", async (req, res) => {
 
 //Planos
 
-app.post("/planos", async (req, res) => {
-  const { nome, velocidade_mbps, franquia_gb, preco, descricao } = req.body;
-  try {
-    await pool.query(
-      "INSERT INTO planos (nome, velocidade_mbps, franquia_gb, preco, descricao) VALUES ($1, $2, $3, $4, $5)",
-      [nome, velocidade_mbps, franquia_gb, preco, descricao]
-    );
-    res.status(201).json({ mensagem: "Plano criado com sucesso!" });
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
-  }
-});
-
-// 📋 Listar todos os planos
 app.get("/planos", async (req, res) => {
+  console.log("Rota GET /planos solicitada");
+  const db = conectarBD();
   try {
-    const result = await pool.query("SELECT * FROM planos WHERE ativo = TRUE");
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
+    const resultado = await db.query("SELECT * FROM planos");
+    res.json(resultado.rows);
+  } catch (e) {
+    console.error("Erro ao buscar planos:", e);
+    res.status(500).json({ erro: "Erro interno do servidor" });
   }
 });
 
-// 🔍 Buscar plano por ID
+// GET /planos/:id → buscar um plano específico
 app.get("/planos/:id", async (req, res) => {
-  const { id } = req.params;
+  console.log("Rota GET /planos/:id solicitada");
+  const id = req.params.id;
+  const db = conectarBD();
+
   try {
-    const result = await pool.query("SELECT * FROM planos WHERE id_plano = $1", [id]);
-    if (result.rowCount === 0)
+    const resultado = await db.query("SELECT * FROM planos WHERE id_plano = $1", [id]);
+    if (resultado.rows.length === 0) {
       return res.status(404).json({ mensagem: "Plano não encontrado" });
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
+    }
+    res.json(resultado.rows[0]);
+  } catch (e) {
+    console.error("Erro ao buscar plano:", e);
+    res.status(500).json({ erro: "Erro interno do servidor" });
   }
 });
 
-// ✏️ Atualizar plano
+// POST /planos → cadastrar um novo plano
+app.post("/planos", async (req, res) => {
+  console.log("Rota POST /planos solicitada");
+  const data = req.body;
+
+  if (!data.nome || !data.velocidade_mbps || !data.preco) {
+    return res.status(400).json({
+      erro: "Dados inválidos",
+      mensagem: "Os campos nome, velocidade_mbps e preco são obrigatórios.",
+    });
+  }
+
+  const db = conectarBD();
+
+  try {
+    const consulta = `
+      INSERT INTO planos (nome, velocidade_mbps, franquia_gb, preco, descricao)
+      VALUES ($1, $2, $3, $4, $5)
+    `;
+    await db.query(consulta, [
+      data.nome,
+      data.velocidade_mbps,
+      data.franquia_gb || null,
+      data.preco,
+      data.descricao || null,
+    ]);
+
+    res.status(201).json({ mensagem: "Plano criado com sucesso!" });
+  } catch (e) {
+    console.error("Erro ao inserir plano:", e);
+    res.status(500).json({ erro: "Erro interno do servidor" });
+  }
+});
+
+// PUT /planos/:id → atualizar um plano existente
 app.put("/planos/:id", async (req, res) => {
-  const { id } = req.params;
-  const { nome, velocidade_mbps, franquia_gb, preco, descricao, ativo } = req.body;
+  console.log("Rota PUT /planos/:id solicitada");
+  const id = req.params.id;
+  const db = conectarBD();
+
   try {
-    const result = await pool.query(
-      `UPDATE planos 
-       SET nome = COALESCE($1, nome),
-           velocidade_mbps = COALESCE($2, velocidade_mbps),
-           franquia_gb = COALESCE($3, franquia_gb),
-           preco = COALESCE($4, preco),
-           descricao = COALESCE($5, descricao),
-           ativo = COALESCE($6, ativo)
-       WHERE id_plano = $7`,
-      [nome, velocidade_mbps, franquia_gb, preco, descricao, ativo, id]
-    );
-    if (result.rowCount === 0)
+    const resultado = await db.query("SELECT * FROM planos WHERE id_plano = $1", [id]);
+    if (resultado.rows.length === 0) {
       return res.status(404).json({ mensagem: "Plano não encontrado" });
-    res.json({ mensagem: "Plano atualizado com sucesso!" });
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
+    }
+
+    const planoAtual = resultado.rows[0];
+    const data = req.body;
+
+    const nome = data.nome || planoAtual.nome;
+    const velocidade = data.velocidade_mbps || planoAtual.velocidade_mbps;
+    const franquia = data.franquia_gb || planoAtual.franquia_gb;
+    const preco = data.preco || planoAtual.preco;
+    const descricao = data.descricao || planoAtual.descricao;
+
+    const consulta = `
+      UPDATE planos 
+      SET nome = $1, velocidade_mbps = $2, franquia_gb = $3, preco = $4, descricao = $5
+      WHERE id_plano = $6
+    `;
+    await db.query(consulta, [nome, velocidade, franquia, preco, descricao, id]);
+
+    res.status(200).json({ mensagem: "Plano atualizado com sucesso!" });
+  } catch (e) {
+    console.error("Erro ao atualizar plano:", e);
+    res.status(500).json({ erro: "Erro interno do servidor" });
   }
 });
 
-// ❌ Desativar plano
+// DELETE /planos/:id → excluir um plano
 app.delete("/planos/:id", async (req, res) => {
-  const { id } = req.params;
+  console.log("Rota DELETE /planos/:id solicitada");
+  const id = req.params.id;
+  const db = conectarBD();
+
   try {
-    const result = await pool.query("UPDATE planos SET ativo = FALSE WHERE id_plano = $1", [id]);
-    if (result.rowCount === 0)
+    const resultado = await db.query("SELECT * FROM planos WHERE id_plano = $1", [id]);
+    if (resultado.rows.length === 0) {
       return res.status(404).json({ mensagem: "Plano não encontrado" });
-    res.json({ mensagem: "Plano desativado com sucesso!" });
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
+    }
+
+    await db.query("DELETE FROM planos WHERE id_plano = $1", [id]);
+    res.status(200).json({ mensagem: "Plano excluído com sucesso!" });
+  } catch (e) {
+    console.error("Erro ao excluir plano:", e);
+    res.status(500).json({ erro: "Erro interno do servidor" });
   }
 });
 
