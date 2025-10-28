@@ -181,6 +181,80 @@ app.put("/questoes/:id", async (req, res) => {
   }
 });
 
+//Planos
+
+app.post("/planos", async (req, res) => {
+  const { nome, velocidade_mbps, franquia_gb, preco, descricao } = req.body;
+  try {
+    await pool.query(
+      "INSERT INTO planos (nome, velocidade_mbps, franquia_gb, preco, descricao) VALUES ($1, $2, $3, $4, $5)",
+      [nome, velocidade_mbps, franquia_gb, preco, descricao]
+    );
+    res.status(201).json({ mensagem: "Plano criado com sucesso!" });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// 📋 Listar todos os planos
+app.get("/planos", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM planos WHERE ativo = TRUE");
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// 🔍 Buscar plano por ID
+app.get("/planos/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query("SELECT * FROM planos WHERE id_plano = $1", [id]);
+    if (result.rowCount === 0)
+      return res.status(404).json({ mensagem: "Plano não encontrado" });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ✏️ Atualizar plano
+app.put("/planos/:id", async (req, res) => {
+  const { id } = req.params;
+  const { nome, velocidade_mbps, franquia_gb, preco, descricao, ativo } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE planos 
+       SET nome = COALESCE($1, nome),
+           velocidade_mbps = COALESCE($2, velocidade_mbps),
+           franquia_gb = COALESCE($3, franquia_gb),
+           preco = COALESCE($4, preco),
+           descricao = COALESCE($5, descricao),
+           ativo = COALESCE($6, ativo)
+       WHERE id_plano = $7`,
+      [nome, velocidade_mbps, franquia_gb, preco, descricao, ativo, id]
+    );
+    if (result.rowCount === 0)
+      return res.status(404).json({ mensagem: "Plano não encontrado" });
+    res.json({ mensagem: "Plano atualizado com sucesso!" });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+// ❌ Desativar plano
+app.delete("/planos/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query("UPDATE planos SET ativo = FALSE WHERE id_plano = $1", [id]);
+    if (result.rowCount === 0)
+      return res.status(404).json({ mensagem: "Plano não encontrado" });
+    res.json({ mensagem: "Plano desativado com sucesso!" });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
 
 app.listen(port, () => {            // Um socket para "escutar" as requisições
   console.log(`Serviço rodando na porta:  ${port}`);
